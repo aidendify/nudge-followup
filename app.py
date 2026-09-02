@@ -257,8 +257,7 @@ def save_sequence(lead_id: int, steps: list[dict], replace: bool = False) -> Non
             """
             INSERT INTO sequences (lead_id, step, send_on, subject, body, sent_at)
             VALUES (?, ?, ?, ?, ?, NULL)
-            """
-            ,
+            """,
             (lead_id, step["step"], step["send_on"], step["subject"], step["body"]),
         )
     db.commit()
@@ -362,8 +361,7 @@ def insert_lead(data: dict, status: str = "new") -> int:
         """
         INSERT INTO leads (name, email, company, last_touch, notes, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-        """
-        ,
+        """,
         (
             data["name"],
             data["email"],
