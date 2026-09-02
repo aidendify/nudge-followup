@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Leads · Nudge{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <h1>Leads</h1>
+    <p class="lede">Import a CSV or add a person, then generate a three-step follow-up.</p>
+  </div>
+</section>
+
+<nav class="filters" aria-label="Filter by status">
+  <a class="{% if not status %}is-on{% endif %}" href="{{ url_for('index') }}">All ({{ counts.get('all', 0) }})</a>
+  <a class="{% if status == 'new' %}is-on{% endif %}" href="{{ url_for('index', status='new') }}">New ({{ counts.get('new', 0) }})</a>
+  <a class="{% if status == 'contacted' %}is-on{% endif %}" href="{{ url_for('index', status='contacted') }}">Contacted ({{ counts.get('contacted', 0) }})</a>
+  <a class="{% if status == 'skipped' %}is-on{% endif %}" href="{{ url_for('index', status='skipped') }}">Skipped ({{ counts.get('skipped', 0) }})</a>
+  <a class="{% if status == 'replied' %}is-on{% endif %}" href="{{ url_for('index', status='replied') }}">Replied ({{ counts.get('replied', 0) }})</a>
+</nav>
+
+<div class="grid-two">
+  <section class="card">
+    <h2>Add a lead</h2>
+    <form method="post" action="{{ url_for('create_lead') }}" class="stack">
+      <label>Name <input type="text" name="name" required autocomplete="name"></label>
+      <label>Email <input type="email" name="email" required autocomplete="email"></label>
+      <label>Company <input type="text" name="company" autocomplete="organization"></label>
+      <label>Last touch date <input type="date" name="last_touch"></label>
+      <label>Notes <textarea name="notes" rows="3" placeholder="What you talked about"></textarea></label>
+      <button type="submit" class="btn">Save lead</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Import CSV</h2>
+    <p class="hint">Header row: <code>name, email, company, last_touch, notes</code>. <code>last touch date</code> is also accepted. Bad rows are skipped.</p>
+    <form method="post" action="{{ url_for('import_leads') }}" enctype="multipart/form-data" class="stack">
+      <label>CSV file <input type="file" name="file" accept=".csv,text/csv" required></label>
+      <button type="submit" class="btn">Import CSV</button>
+    </form>
+    <p class="hint">Try <code>sample-leads.csv</code> from this repo — three fictional leads, no SMTP needed after import.</p>
+  </section>
+</div>
+
+<section class="card table-wrap">
+  {% if leads %}
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Company</th>
+        <th>Last touch</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in leads %}
+      <tr>
+        <td><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.name }}</a></td>
+        <td>{{ lead.email }}</td>
+        <td>{{ lead.company or "—" }}</td>
+        <td>{{ lead.last_touch or "—" }}</td>
+        <td><span class="badge badge-{{ lead.status }}">{{ lead.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No leads yet. Add one on the left or import <code>sample-leads.csv</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} · Nudge{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('index') }}">Leads</a> / {{ lead.name }}</p>
+
+<section class="page-head">
+  <div>
+    <h1>{{ lead.name }}</h1>
+    <p class="lede">
+      <a href="mailto:{{ lead.email }}">{{ lead.email }}</a>
+      {% if lead.company %} · {{ lead.company }}{% endif %}
+      · <span class="badge badge-{{ lead.status }}">{{ lead.status }}</span>
+    </p>
+  </div>
+</section>
+
+<section class="card">
+  <dl class="facts">
+    <div><dt>Last touch</dt><dd>{{ lead.last_touch or "— (Day 0 will use today)" }}</dd></div>
+    <div><dt>Notes</dt><dd>{{ lead.notes or "—" }}</dd></div>
+    <div><dt>Added</dt><dd>{{ lead.created_at }}</dd></div>
+  </dl>
+  <form method="post" action="{{ url_for('update_status', lead_id=lead.id) }}" class="status-row">
+    <button class="btn btn-quiet" name="status" value="contacted" type="submit">Mark contacted</button>
+    <button class="btn btn-quiet" name="status" value="skipped" type="submit">Mark skipped</button>
+    <button class="btn btn-quiet" name="status" value="replied" type="submit">Mark replied</button>
+    <button class="btn btn-quiet" name="status" value="new" type="submit">Reset to new</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="seq-head">
+    <h2>Follow-up sequence</h2>
+    <div class="seq-actions">
+      {% if steps %}
+      <form method="post" action="{{ url_for('regenerate_sequence', lead_id=lead.id) }}" onsubmit="return confirm('Replace the existing sequence?');">
+        <button type="submit" class="btn btn-quiet">Regenerate</button>
+      </form>
+      <a class="btn btn-quiet" href="{{ url_for('export_sequence', lead_id=lead.id) }}">Export as .txt</a>
+      <button type="button" class="btn" id="copy-all">Copy all</button>
+      {% if smtp_configured %}
+      <form method="post" action="{{ url_for('send_unsent', lead_id=lead.id) }}">
+        <button type="submit" class="btn">Send unsent via SMTP</button>
+      </form>
+      {% endif %}
+      {% else %}
+      <form method="post" action="{{ url_for('generate_sequence', lead_id=lead.id) }}">
+        <button type="submit" class="btn">Generate sequence</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not smtp_configured %}
+  <p class="hint">SMTP is not configured. You can still copy or export this sequence. Set <code>SMTP_HOST</code> in <code>.env</code> to enable sending.</p>
+  {% endif %}
+
+  {% if steps %}
+    {% for step in steps %}
+    <article class="step" id="step-{{ step.step }}">
+      <header>
+        <h3>Step {{ step.step }} · Day {{ {1: 0, 2: 3, 3: 7}[step.step] }}</h3>
+        <p class="hint">Send on {{ step.send_on }}{% if step.sent_at %} · sent {{ step.sent_at }}{% else %} · not sent{% endif %}</p>
+      </header>
+      <p class="subject"><strong>Subject:</strong> {{ step.subject }}</p>
+      <pre class="body">{{ step.body }}</pre>
+      <div class="step-actions">
+        <button type="button" class="btn btn-quiet copy-step" data-step="{{ loop.index0 }}">Copy this step</button>
+        {% if smtp_configured and not step.sent_at %}
+        <form method="post" action="{{ url_for('send_one_step', lead_id=lead.id, step=step.step) }}">
+          <button type="submit" class="btn btn-quiet">Send this step</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+    <script>
+      (function () {
+        var all = {{ steps | map(attribute='subject') | list | tojson }};
+        var bodies = {{ steps | map(attribute='body') | list | tojson }};
+        var sendOns = {{ steps | map(attribute='send_on') | list | tojson }};
+        var btn = document.getElementById("copy-all");
+        if (btn) {
+          btn.addEventListener("click", function () {
+            var chunks = [];
+            for (var i = 0; i < all.length; i++) {
+              chunks.push("Step " + (i + 1) + " (send on " + sendOns[i] + ")\nSubject: " + all[i] + "\n\n" + bodies[i]);
+            }
+            copyText(chunks.join("\n\n-----\n\n"), btn);
+          });
+        }
+        document.querySelectorAll(".copy-step").forEach(function (el) {
+          el.addEventListener("click", function () {
+            var i = parseInt(el.getAttribute("data-step"), 10);
+            copyText("Subject: " + all[i] + "\n\n" + bodies[i], el);
+          });
+        });
+      })();
+    </script>
+  {% else %}
+    <p class="empty">No sequence yet. Generate one — Day 0, Day 3, and Day 7 from the last touch date (or today).</p>
+  {% endif %}
+</section>
+{% endblock %}
